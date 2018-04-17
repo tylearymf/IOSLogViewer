@@ -4,6 +4,7 @@ using System.ComponentModel;
 using System.Data;
 using System.Diagnostics;
 using System.Drawing;
+using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -67,6 +68,7 @@ namespace IOSLogViewer
         #region 其它事件
         void LogView_RowStateChanged(object sender, DataGridViewCellStateChangedEventArgs e)
         {
+            if (this.IsDisposed) return;
             if (e.StateChanged != DataGridViewElementStates.Selected) return;
             if (showingLogInfos == null || e.Cell.RowIndex < 0 || e.Cell.RowIndex >= showingLogInfos.Count) return;
             LogDetail.Text = showingLogInfos[e.Cell.RowIndex].fullLog;
@@ -208,8 +210,7 @@ namespace IOSLogViewer
             mProcess.OutputDataReceived += new DataReceivedEventHandler(OutputHandler);
             mProcess.Start();
 
-            mProcess.StandardInput.WriteLine(@"D:\ymf\UnityProjects\libimobiledevice-Compiled-Windows-ios11\idevicesyslog");
-
+            mProcess.StandardInput.WriteLine(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "libimobiledevice/idevicesyslog.exe"));
             InitView();
             mProcess.BeginOutputReadLine();
         }
