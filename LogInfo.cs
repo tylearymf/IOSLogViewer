@@ -13,7 +13,7 @@ namespace IOSLogViewer
             rTicks = DateTime.Now.Ticks;
         }
 
-        const int cLogMaxLength = 20;
+        const int cLogMaxLength = 200;
         readonly long rTicks;
         string mLog = string.Empty;
 

@@ -15,10 +15,13 @@ namespace IOSLogViewer
     public partial class IOSLogViewer : Form
     {
         #region 字段
+        readonly string[] mMonths = { "JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC" };
         Process mProcess;
         LogInfo mLastLog;
         object mLockInvoke = new object();
         object mLockUpdateView = new object();
+        object mLockInitView = new object();
+        string mPrefixName;
         #endregion
 
         #region 属性
@@ -26,12 +29,10 @@ namespace IOSLogViewer
         /// 默认自动选中最新log
         /// </summary>
         public bool isScrollBottom { private set; get; } = true;
-
         public List<LogInfo> allLogInfos { private set; get; }
-
         public List<LogInfo> showingLogInfos { private set; get; }
-
         public bool isChangeText { private set; get; } = true;
+        public int rowIndex { private set; get; }
         #endregion
 
         #region 构造方法 初始化
@@ -50,18 +51,23 @@ namespace IOSLogViewer
             logView.RowHeadersVisible = false;
             logView.MultiSelect = false;
             logView.RowTemplate.MinimumHeight = logView.RowTemplate.Height = 30;
+            logView.AutoSizeRowsMode = DataGridViewAutoSizeRowsMode.AllCells;
             logView.CellStateChanged += LogView_RowStateChanged;
         }
 
         void InitView()
         {
-            allLogInfos = new List<LogInfo>();
-            logView.Rows.Clear();
-            LogDetail.Text = string.Empty;
+            lock (mLockInitView)
+            {
+                allLogInfos = new List<LogInfo>();
+                logView.Rows.Clear();
+                LogDetail.Text = string.Empty;
+                mLastLog = null;
 
-            logView.Columns.Add("日志", "日志");
-            logView.Columns.Add("数据", string.Empty);
-            IsFollowLast.Checked = isScrollBottom;
+                logView.Columns.Add("日志", "日志");
+                logView.Columns.Add("数据", string.Empty);
+                IsFollowLast.Checked = isScrollBottom;
+            }
         }
         #endregion
 
@@ -156,19 +162,23 @@ namespace IOSLogViewer
                 {
                     lock (mLockInvoke)
                     {
-                        var tRowIndex = logView.Rows.Add();
-                        logView.Rows[tRowIndex].Cells[0].Value = pInfo.shortLog;
-                        logView.Rows[tRowIndex].Cells[1].Value = pInfo;
+                        AddInfo(pInfo);
                         SelectLastRow();
                     }
                 }));
             }
             else
             {
-                var tRowIndex = logView.Rows.Add();
-                logView.Rows[tRowIndex].Cells[0].Value = pInfo.shortLog;
-                logView.Rows[tRowIndex].Cells[1].Value = pInfo;
+                AddInfo(pInfo);
             }
+        }
+
+        void AddInfo(LogInfo pInfo)
+        {
+            var tRowIndex = logView.Rows.Add();
+            logView.Rows[tRowIndex].Cells[0].Value = pInfo.shortLog;
+            logView.Rows[tRowIndex].Cells[1].Value = pInfo;
+            logView.Rows[tRowIndex].Cells[0].Style.BackColor = rowIndex++ % 2 == 0 ? Color.White : DefaultBackColor;
         }
 
         void SelectLastRow()
@@ -238,7 +248,11 @@ namespace IOSLogViewer
         {
             if (string.IsNullOrEmpty(pMessage.Data)) return;
             LogInfo tLog = null;
-            if (mLastLog == null || pMessage.Data.StartsWith("Apr"))
+            if (string.IsNullOrEmpty(mPrefixName) && pMessage.Data.IndexOf(' ') == 3 && mMonths.Contains(pMessage.Data.Substring(0, 3).ToUpper()))
+            {
+                mPrefixName = pMessage.Data.Substring(0, 3);
+            }
+            if (mLastLog == null || (!string.IsNullOrEmpty(mPrefixName) && pMessage.Data.StartsWith(mPrefixName)))
             {
                 tLog = new LogInfo();
                 tLog.AddLog(pMessage.Data, false);
